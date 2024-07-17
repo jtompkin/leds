@@ -45,7 +45,7 @@ SAMPLE_RATE = 1
 
 class Pixels:
     def __init__(
-        self, pixels: neopixel.NeoPixel, min: int, max: int, duration: float
+        self, pixels: neopixel.NeoPixel, min: float, max: float, duration: float
     ) -> None:
         self.pixels = pixels
         self.min = min
@@ -248,7 +248,6 @@ def main(argv: list[str] | None = None) -> None:
     ) as raw_pixels:
         pixels = Pixels(raw_pixels, args.min, args.max, args.duration)
         pixels.pixels.fill(args.color)
-        pixels.pixels.show()
         try:
             loop(pixels, args.dawn, args.duration, args.dusk)
         except KeyboardInterrupt:
