@@ -6,20 +6,34 @@ import neopixel
 
 # pyright: basic
 
-SAMPLE_RATE = 1
+SAMPLE_RATE = 2
 
 
-def dim(pixels: neopixel.NeoPixel, duration: int, start: int, end: int) -> None:
+def dim(
+    pixels: neopixel.NeoPixel, duration: float, start: float, end: float
+) -> None:
     for i in range(len(pixels)):
-        imap = {0: (70, 0, 0), 1: (0, 70, 0), 2: (0, 0, 70)}
+        imap = {0: (255, 0, 0), 1: (0, 255, 0), 2: (0, 0, 255)}
         pixels[i] = imap[i % 3]
-    prop = 1
-    delta = 1 / duration
-    for _ in range(duration):
-        prop -= delta
-        pixels.brightness = prop
+    pixels.brightness = start
+    brightness = start
+    delta = ((end - start) / duration) / SAMPLE_RATE
+    t = time.time()
+    while time.time() - t < duration:
+        brightness += delta
+        print(brightness, time.time() - t)
+        pixels.brightness = brightness
         pixels.show()
         time.sleep(1 / SAMPLE_RATE)
+    pixels.brightness = end
+    pixels.show()
+
+
+def proportion(arg: str) -> float:
+    val = float(arg)
+    if not 0 <= val <= 1:
+        raise argparse.ArgumentTypeError("value must be between 0 and 1")
+    return val
 
 
 def main(argv: list[str] | None = None) -> None:
@@ -35,19 +49,19 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument(
         "-s",
         "--start",
-        type=int,
-        default=255,
+        type=proportion,
+        default=1,
         help="Set the brightness of the pixels to the value given. Must be between 0 and 255.",
     )
     parser.add_argument(
         "-e",
         "--end",
-        type=int,
+        type=proportion,
         default=0,
         help="End value for brightness. Must be between 0 and 255 and less than -s.",
     )
     args = parser.parse_args(argv)
-    duration = int(args.time * 60) * SAMPLE_RATE
+    duration = int(args.time * 60)
     if duration <= 0:
         raise ValueError("-t, --time must be greater than 0.")
     if not 0 <= args.start <= 255:
