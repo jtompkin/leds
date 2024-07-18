@@ -41,6 +41,7 @@ logging_config = {
 }
 
 SAMPLE_RATE = 1
+PIN = board.D18
 
 
 class Pixels:
@@ -242,7 +243,7 @@ def main(argv: list[str] | None = None) -> None:
         parser.error("--max must be greater than --min")
 
     with neopixel.NeoPixel(
-        board.D18,  # pyright: ignore
+        PIN,  # pyright: ignore
         args.num_pixels,
         auto_write=False,
     ) as raw_pixels:
