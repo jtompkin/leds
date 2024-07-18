@@ -182,7 +182,6 @@ def _positive_int(arg: str) -> int:
 
 
 def main(argv: list[str] | None = None) -> None:
-    os.mkdir("logs")
     logging.config.dictConfig(config=logging_config)
     parser = argparse.ArgumentParser(
         description="Begin circadian cycle with smooth dimming and brightening of LEDs."
