@@ -46,7 +46,7 @@ python cycle.py
 ### Example
 
 ```bash
-sudo $(which python) cycle.py --dawn 07:00 --duration 60 --color 255 0 0 -n 30
+sudo --preserve-env=PATH,VIRTUAL_ENV cycle.py --dawn 07:00 --duration 60 --color 255 0 0 -n 30
 ```
 
 - This starts a circadian cycle where dawn starts at 07:00, dusk starts at
