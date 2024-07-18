@@ -182,6 +182,9 @@ def _positive_int(arg: str) -> int:
 
 
 def main(argv: list[str] | None = None) -> None:
+    os.makedirs("logs", exist_ok=True)
+    # So that normal users can view log files when ran with sudo
+    os.chmod("logs", 0o777)
     logging.config.dictConfig(config=logging_config)
     parser = argparse.ArgumentParser(
         description="Begin circadian cycle with smooth dimming and brightening of LEDs."
