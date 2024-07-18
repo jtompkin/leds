@@ -6,7 +6,7 @@ import neopixel
 # pyright: basic
 
 WAIT = 1
-NUM_PIXELS = 60
+NUM_PIXELS = 120
 BLACK = (0, 0, 0)
 
 
