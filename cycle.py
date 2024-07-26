@@ -92,6 +92,47 @@ class Pixels:
 def loop(
     pixels: Pixels,
     dawn_time: datetime.datetime,
+    duration_sec: float,
+    dusk_time: datetime.datetime | None = None,
+) -> None:
+    day = 1
+    while True:
+        now = datetime.datetime.now()
+        dawn = datetime.datetime(
+            now.year,
+            now.month,
+            now.day,
+            dawn_time.hour,
+            dawn_time.minute,
+        )
+        if now > dawn:
+            dawn -= datetime.timedelta(1)
+        if dusk_time is None:
+            dusk = dawn + datetime.timedelta(hours=12)
+        else:
+            dusk = datetime.datetime(
+                now.year,
+                now.month,
+                now.day,
+                dusk_time.hour,
+                dusk_time.minute,
+            )
+            if now > dusk:
+                dusk -= datetime.timedelta(1)
+        if dawn > dusk:
+            next = dusk
+        else:
+            next = dawn
+        logger.info(f"current time is {now}")
+        logger.info(f"dawn will occur at {dawn}")
+        logger.info(f"dusk will occur at {dusk}")
+        logger.info(f"next event will occur at {next}")
+        break
+
+
+def old_loop(
+    pixels: Pixels,
+    dawn_time: datetime.datetime,
     duration: float,
     dusk_time: datetime.datetime | None = None,
 ) -> None:
