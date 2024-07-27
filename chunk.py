@@ -4,9 +4,8 @@ import board
 import random
 import neopixel
 
-# pyright: basic
 
-PIN = board.D18
+PIN = board.D10
 NUM_PIXELS = 120
 CHUNK_SIZE = 10
 

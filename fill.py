@@ -4,9 +4,10 @@ import argparse
 import board
 import neopixel
 
-# pyright: basic
 
 Color = tuple[int, int, int] | int
+
+PIN = board.D10
 
 
 def fill(pixels: neopixel.NeoPixel, color: Color) -> None:
@@ -64,7 +65,7 @@ def main(argv: list[str] | None = None) -> None:
     c = args.rgb
     if c is None:
         c = args.color
-    with neopixel.NeoPixel(board.D18, args.num_pixels) as pixels:  # pyright: ignore
+    with neopixel.NeoPixel(PIN, args.num_pixels) as pixels:  # pyright: ignore
         fill(pixels, c)
 
 

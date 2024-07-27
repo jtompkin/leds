@@ -2,12 +2,14 @@
 import board
 import neopixel
 
-# pyright: basic
+
+PIN = board.D10
 
 
 def main() -> None:
-    pixels = neopixel.NeoPixel(board.D18, 60)
-    pixels.fill((255, 255, 255))
+    with neopixel.NeoPixel(PIN, 60) as pixels:  # pyright: ignore
+        pixels.fill((255, 255, 255))
+        input("press return to exit")
 
 
 if __name__ == "__main__":

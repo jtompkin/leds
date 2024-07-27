@@ -3,7 +3,7 @@ import board
 import neopixel
 import time
 
-# pyright: basic
+PIN = board.D10
 
 
 def loop(pixels) -> None:
@@ -21,7 +21,7 @@ def loop(pixels) -> None:
 
 
 def main() -> None:
-    pixels = neopixel.NeoPixel(board.D18, 60)
+    pixels = neopixel.NeoPixel(PIN, 60)  # pyright: ignore
     try:
         loop(pixels)
     except KeyboardInterrupt:

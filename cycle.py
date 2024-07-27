@@ -8,9 +8,7 @@ from time import sleep, time
 import board
 import neopixel
 
-# pyright: basic
-
-logger = logging.getLogger("smooth")
+logger = logging.getLogger("cycle")
 
 logging_config = {
     "version": 1,
@@ -41,153 +39,142 @@ logging_config = {
     "loggers": {"root": {"level": "DEBUG", "handlers": ["file", "stdout"]}},
 }
 
-SAMPLE_RATE = 1
-PIN = board.D18
+RATE = 1
+PIN = board.D10
 
 
 class Pixels:
     def __init__(
-        self, pixels: neopixel.NeoPixel, min: float, max: float, duration: float
+        self,
+        pixels: neopixel.NeoPixel,
+        min: float,
+        max: float,
+        duration: float,
+        log: bool = True,
     ) -> None:
         self.pixels = pixels
         self.min = min
         self.max = max
         self.duration = duration
+        self.log = log
+        self.events = {
+            "dawn": self._setup_gradual(self.min, self.max),
+            "dusk": self._setup_gradual(self.max, self.min),
+        }
 
-    def dim(self):
-        logger.info("Beginning dusk")
-        self.pixels.brightness = self.max
-        self.pixels.show()
-        brightness = self.max
-        delta = ((self.min - self.max) / self.duration) / SAMPLE_RATE
-        t = time()
-        while time() - t < self.duration:
-            brightness += delta
-            self.pixels.brightness = brightness
-            self.pixels.show()
-            logger.debug(brightness)
-            sleep(1 / SAMPLE_RATE)
-        self.pixels.brightness = self.min
-        self.pixels.show()
-        logger.info("Dusk complete")
+    def _setup_gradual(self, start: float, end: float):
+        def gradual():
+            self._change_brightness(start)
+            brightness = start
+            delta = ((end - start) / self.duration) / RATE
+            t = time()
+            while time() - t < self.duration:
+                brightness += delta
+                self._change_brightness(brightness)
+                if self.log:
+                    logger.debug(brightness)
+                sleep(1 / RATE)
+            self._change_brightness(end)
+            if self.log:
+                logger.debug(f"duration {time() - t}")
 
-    def brighten(self):
-        logger.info("Beginning dawn")
-        self.pixels.brightness = self.min
+        return gradual
+
+    def set_day(self):
+        if self.log:
+            logger.debug(f"setting brightness to {self.max}")
+        self._change_brightness(self.max)
+
+    def set_night(self):
+        if self.log:
+            logger.debug(f"setting brightness to {self.min}")
+        self._change_brightness(self.min)
+
+    def _change_brightness(self, brightness: float) -> None:
+        self.pixels.brightness = brightness
         self.pixels.show()
-        brightness = self.min
-        delta = ((self.max - self.min) / self.duration) / SAMPLE_RATE
-        t = time()
-        while time() - t < self.duration:
-            brightness += delta
-            self.pixels.brightness = brightness
-            self.pixels.show()
-            logger.debug(brightness)
-            sleep(1 / SAMPLE_RATE)
-        self.pixels.brightness = self.max
-        self.pixels.show()
-        logger.info("Dawn complete")
 
 
 def loop(
     pixels: Pixels,
-    dawn_time: datetime.datetime,
-    duration_sec: float,
-    dusk_time: datetime.datetime | None = None,
+    dawn_time: datetime.time,
+    dusk_time: datetime.time | None = None,
 ) -> None:
     day = 1
     while True:
-        now = datetime.datetime.now()
-        dawn = datetime.datetime(
-            now.year,
-            now.month,
-            now.day,
-            dawn_time.hour,
-            dawn_time.minute,
-        )
-        if now > dawn:
-            dawn -= datetime.timedelta(1)
-        if dusk_time is None:
-            dusk = dawn + datetime.timedelta(hours=12)
+        logging.info(f"beginning day {day}")
+        events = get_events(dawn_time, dusk_time)
+        if events["dawn"] > events["dusk"]:
+            pixels.set_day()
+            next_event = "dusk"
         else:
-            dusk = datetime.datetime(
-                now.year,
-                now.month,
-                now.day,
-                dusk_time.hour,
-                dusk_time.minute,
-            )
-            if now > dusk:
-                dusk -= datetime.timedelta(1)
-        if dawn > dusk:
-            next = dusk
-        else:
-            next = dawn
-        logger.info(f"current time is {now}")
-        logger.info(f"dawn will occur at {dawn}")
-        logger.info(f"dusk will occur at {dusk}")
-        logger.info(f"next event will occur at {next}")
-        break
-
-
-def old_loop(
-    pixels: Pixels,
-    dawn_time: datetime.datetime,
-    duration: float,
-    dusk_time: datetime.datetime | None = None,
-) -> None:
-    day = 1
-    while True:
-        logger.info(f"starting day {day}")
-        now = datetime.datetime.now()
-        logger.info(f"current time set to {now}")
-        dawn = datetime.datetime(
-            now.year, now.month, now.day, dawn_time.hour, dawn_time.minute
-        )
-        if now.timestamp() > dawn.timestamp():
-            dawn += datetime.timedelta(1)
-        logger.info(f"dawn will occur at {dawn}")
-        dusk = dawn - datetime.timedelta(hours=12)
-        if dusk_time is not None:
-            dusk = datetime.datetime(
-                now.year, now.month, now.day, dusk_time.hour, dusk_time.minute
-            )
-        if now.timestamp() > dusk.timestamp():
-            dusk += datetime.timedelta(1)
-        logger.info(f"dusk will occur at {dusk}")
-        until_dawn = dawn - now
-        logger.info(f"time until dawn {until_dawn}")
-        until_dusk = dusk - now
-        logger.info(f"time until dusk {until_dusk}")
-        if until_dawn < until_dusk:
-            pixels.pixels.brightness = pixels.min
-            pixels.pixels.show()
-            logger.info(f"sleeping {until_dawn.seconds} seconds until dawn")
-            sleep(until_dawn.seconds)
-            pixels.brighten()
+            pixels.set_night()
+            next_event = "dawn"
+        done = {"dawn": False, "dusk": False}
+        logger.info(f"current time is {events['now']}")
+        logger.info(f"dawn will occur at {events['dawn']}")
+        logger.info(f"dusk will occur at {events['dusk']}")
+        while not (done["dawn"] and done["dusk"]):
             logger.info(
-                f"dusk will occur at {datetime.datetime.now() + datetime.timedelta(seconds=(until_dusk - until_dawn).seconds - duration)}"
+                f"next event ({next_event}) will occur at {events[next_event]}"
             )
-            logger.info(
-                f"sleeping {(until_dusk - until_dawn).seconds - duration} seconds until dusk"
-            )
-            sleep((until_dusk - until_dawn).seconds - duration)
-            pixels.dim()
-        else:
-            pixels.pixels.brightness = pixels.max
-            pixels.pixels.show()
-            logger.info(f"sleeping {until_dusk.seconds} seconds until dusk")
-            sleep(until_dusk.seconds)
-            pixels.dim()
-            logger.info(
-                f"dawn will occur at {datetime.datetime.now() + datetime.timedelta(seconds=(until_dawn - until_dusk).seconds - duration)}"
-            )
-            logger.info(
-                f"sleeping {(until_dawn - until_dusk).seconds - duration} seconds until dawn"
-            )
-            sleep((until_dawn - until_dusk).seconds - duration)
-            pixels.brighten()
+            while datetime.datetime.now() < events[next_event]:
+                pass
+            logger.info(f"beginning {next_event}")
+            pixels.events[next_event]()
+            logger.info(f"{next_event} complete")
+            done[next_event] = True
+            if next_event == "dusk":
+                next_event = "dawn"
+            else:
+                next_event = "dusk"
         day += 1
+
+
+def get_events(
+    dawn_time: datetime.time, dusk_time: datetime.time | None
+) -> dict[str, datetime.datetime]:
+    events = {"now": datetime.datetime.now()}
+    events["dawn"] = datetime.datetime(
+        events["now"].year,
+        events["now"].month,
+        events["now"].day,
+        dawn_time.hour,
+        dawn_time.minute,
+        dawn_time.second,
+    )
+    if events["now"] > events["dawn"]:
+        events["dawn"] += datetime.timedelta(1)
+    if dusk_time is None:
+        events["dusk"] = events["dawn"] - datetime.timedelta(hours=12)
+    else:
+        events["dusk"] = datetime.datetime(
+            events["now"].year,
+            events["now"].month,
+            events["now"].day,
+            dusk_time.hour,
+            dusk_time.minute,
+            dusk_time.second,
+        )
+    if events["now"] > events["dusk"]:
+        events["dusk"] += datetime.timedelta(1)
+    return events
+
+
+def _rgb(arg: str) -> int:
+    val = int(arg)
+    if not 0 <= val <= 255:
+        raise argparse.ArgumentTypeError("all values must be between 0 and 255")
+    return val
+
+
+def _color(arg: str) -> int:
+    val = int(arg.lstrip("#"), 16)
+    if not 0 <= val <= 0xFFFFFF:
+        raise argparse.ArgumentTypeError(
+            "value must be between 0x000000 and 0xFFFFFF"
+        )
+    return val
 
 
 def _brightness(arg: str) -> float:
@@ -205,14 +192,13 @@ def _minutes(arg: str) -> float:
 
 
 def _time(arg: str) -> datetime.datetime:
-    return datetime.datetime.strptime(arg, "%H:%M")
-
-
-def _color(arg: str) -> int:
-    val = int(arg)
-    if not 0 <= val <= 255:
-        raise argparse.ArgumentTypeError("value must be between 0 and 255")
-    return val
+    formats = ("%H:%M:%S", "%H:%M", "%H")
+    for format in formats:
+        try:
+            return datetime.datetime.strptime(arg, format)
+        except ValueError:
+            continue
+    raise argparse.ArgumentTypeError(f"value must fit one of {formats}")
 
 
 def _positive_int(arg: str) -> int:
@@ -227,51 +213,62 @@ def main(argv: list[str] | None = None) -> None:
     # So that normal users can view log files when ran with sudo
     os.chmod("logs", 0o777)
     logging.config.dictConfig(config=logging_config)
+
     parser = argparse.ArgumentParser(
         description="Begin circadian cycle with smooth dimming and brightening of LEDs."
     )
+
+    color = parser.add_mutually_exclusive_group()
+    color.add_argument(
+        "-r",
+        "--rgb",
+        nargs=3,
+        type=_rgb,
+        metavar="rgb",
+        help="specifies the RGB color code of the color to set the LED pixels to. Each value of -r must be an integer between 0 and 255. Separate values with a space. (default 255 255 255)",
+    )
+    color.add_argument(
+        "-c",
+        "--color",
+        type=_color,
+        metavar="color",
+        default=0xFFFFFF,
+        help="specifies the hexadecimal value of the color to set the LED pixels to. The value of -c must be between 0x000000 and 0xFFFFFF. (default 0xFFFFFF)",
+    )
+
     parser.add_argument(
         "--dawn",
         type=_time,
-        default="06:00",
-        metavar="H:M",
-        help="Time to start brightening lights. Dusk will be set to 12 hours after dawn. Default is 06:00.",
+        default="06:00:00",
+        metavar="H:M:S",
+        help="specifies the time of day that the LED pixels will begin to brighten. Dusk will be set to 12 hours after dawn. (default 06:00:00)",
     )
     parser.add_argument(
         "--dusk",
         type=_time,
-        metavar="H:M",
-        help="Time to start dimming lights. Do not use this unless you need to; it is set automatically according to --dawn.",
+        metavar="H:M:S",
+        help="specifies the time of day that the LED pixels will begin to dim. Do not set this unless you need to; by default, it is set automatically according to --dawn.",
     )
     parser.add_argument(
         "--duration",
         type=_minutes,
         default="120",
         metavar="minutes",
-        help="Duration in minutes for dimming and brightening lights. Must be a number between 0 and 720. Default is 120.",
-    )
-    parser.add_argument(
-        "-c",
-        "--color",
-        nargs=3,
-        type=_color,
-        metavar="val",
-        default=[255, 255, 255],
-        help="RGB color code of color to set LEDs to. Values must be between 0 and 255. Separate values with a space. Default is 255 255 255",
+        help="specifies the duration in minutes that dimming and brightening operations will last. The value of --duration must be a number between 0 and 720. (default 120)",
     )
     parser.add_argument(
         "--max",
         type=_brightness,
         default=1,
         metavar="brightness",
-        help="Maximum brightness for LEDs. Must be a number between 0 and 1 and greater than --min. Default is 1.",
+        help="specifies the maximum brightness for LED pixels. The value of --max must be a number between 0 and 1. (default 1)",
     )
     parser.add_argument(
         "--min",
         type=_brightness,
         default=0,
         metavar="brightness",
-        help="Minimum brightness for LEDs. Must be a number between 0 and 1 and less than --max. Default is 0.",
+        help="specifies the minimum brightness for LED pixels. The value of --min must be a number between 0 and 1. (default 0)",
     )
     parser.add_argument(
         "-n",
@@ -280,9 +277,14 @@ def main(argv: list[str] | None = None) -> None:
         type=_positive_int,
         default=60,
         metavar="int",
-        help="Number of led pixels to use. Must be an integer greater than 0. Default is 60.",
+        help="specifies the number of LED pixels that will be used. The value of -n must be an integer greater than 0. (default 60)",
     )
     args = parser.parse_args(argv)
+
+    if args.rgb is None:
+        c = args.color
+    else:
+        c = args.rgb
 
     if args.min >= args.max:
         parser.error("--max must be greater than --min")
@@ -293,9 +295,9 @@ def main(argv: list[str] | None = None) -> None:
         auto_write=False,
     ) as raw_pixels:
         pixels = Pixels(raw_pixels, args.min, args.max, args.duration)
-        pixels.pixels.fill(args.color)
+        pixels.pixels.fill(c)
         try:
-            loop(pixels, args.dawn, args.duration, args.dusk)
+            loop(pixels, args.dawn, args.dusk)
         except KeyboardInterrupt:
             logger.info("Received interrupt signal")
     logger.info("Dimming cycle ended")
