@@ -3,7 +3,7 @@ import board
 import neopixel
 import time
 
-PIN = board.D10
+PIN = board.D18
 
 
 def loop(pixels) -> None:

@@ -3,7 +3,7 @@ import board
 import neopixel
 
 
-PIN = board.D10
+PIN = board.D18
 
 Color = tuple[int, int, int] | int
 

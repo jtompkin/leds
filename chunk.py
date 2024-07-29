@@ -5,7 +5,7 @@ import random
 import neopixel
 
 
-PIN = board.D10
+PIN = board.D18
 NUM_PIXELS = 120
 CHUNK_SIZE = 10
 

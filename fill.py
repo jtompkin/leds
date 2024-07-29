@@ -7,7 +7,7 @@ import neopixel
 
 Color = tuple[int, int, int] | int
 
-PIN = board.D10
+PIN = board.D18
 
 
 def fill(pixels: neopixel.NeoPixel, color: Color) -> None:

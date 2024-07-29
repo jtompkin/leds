@@ -8,7 +8,7 @@ import neopixel
 WAIT = 2
 NUM_PIXELS = 60
 BLACK = (0, 0, 0)
-PIN = board.D10
+PIN = board.D18
 
 
 def color_rgb(color: Color) -> tuple[int, int, int]:

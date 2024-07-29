@@ -40,7 +40,7 @@ logging_config = {
 }
 
 RATE = 1
-PIN = board.D10
+PIN = board.D18
 
 
 class Pixels:
