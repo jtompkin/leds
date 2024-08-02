@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
+from collections.abc import Iterable
+from time import sleep
+
 import board
 import neopixel
 
-
 PIN = board.D18
 
-Color = tuple[int, int, int] | int
+Color = Iterable[int] | int
 
 
 class Pixels:
@@ -18,21 +20,33 @@ class Pixels:
     def set(self, i: int, color: Color) -> None:
         self.pixels[i] = color
 
+    def dim(self, time: int) -> None:
+        self.pixels.brightness = 1
+        delta = 1 / (time * 100)
+        for _ in range(time * 100):
+            self.pixels.brightness -= delta
+            self.pixels.show()
+            sleep(0.01)
+
 
 def loop(pixels: Pixels) -> None:
-    delta = int(2**24 / 60)
-    c: int = 0
+    delta = 1 / len(pixels)
     while True:
-        for i in range(len(pixels)):
-            pixels.set(i, 16711680)
-            c += delta
-        pixels.pixels.show()
-        input()
+        for i in range(3):
+            c = [0, 0, 0]
+            for j in range(len(pixels)):
+                pixels.set(j, c)
+                c[i] = int(255 * ((j + 1) * delta))
+            pixels.pixels.show()
+            pixels.dim(2)
 
 
 def main() -> None:
     with neopixel.NeoPixel(PIN, 60, auto_write=False) as raw_pixels:  # pyright: ignore
-        loop(Pixels(raw_pixels))
+        try:
+            loop(Pixels(raw_pixels))
+        except KeyboardInterrupt:
+            print()
 
 
 if __name__ == "__main__":

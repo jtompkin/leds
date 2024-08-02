@@ -42,12 +42,14 @@ def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description="Fill leds with given color")
     color = parser.add_mutually_exclusive_group()
     color.add_argument(
+        "-r",
         "--rgb",
         nargs=3,
         type=_color,
         help="Color as RGB values. Separate values by space. (default 255 255 255)",
     )
     color.add_argument(
+        "-c",
         "--color",
         type=_color_val,
         default=0xFFFFFF,
@@ -62,9 +64,10 @@ def main(argv: list[str] | None = None) -> None:
         help="Number of pixels to fill. (default 60)",
     )
     args = parser.parse_args(argv)
-    c = args.rgb
-    if c is None:
+    if args.rgb is None:
         c = args.color
+    else:
+        c = args.rgb
     with neopixel.NeoPixel(PIN, args.num_pixels) as pixels:  # pyright: ignore
         fill(pixels, c)
 
