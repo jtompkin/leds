@@ -14,7 +14,9 @@ logging_config = {
     "version": 1,
     "disable_existing_loggers": False,
     "formatters": {
-        "simple": {"format": "%(levelname)s|%(asctime)s: %(message)s"},
+        "simple": {
+            "format": "[%(levelname)s|L%(lineno)d] %(asctime)s: %(message)s"
+        },
         "detailed": {
             "format": "[%(levelname)s|L%(lineno)d] %(asctime)s %(message)s",
             "datefmt": "%Y-%m-%dT%H:%M:%S%z",
@@ -119,7 +121,12 @@ def loop(
                 f"next event ({next_event}) will occur at {events[next_event]}"
             )
             while datetime.datetime.now() < events[next_event]:
-                pass
+                try:
+                    sleep(0.01)
+                except KeyboardInterrupt:
+                    logger.info("Received interrupt signal")
+                    if input("exit? (y/N) ").lower() == "y":
+                        return
             logger.info(f"beginning {next_event}")
             pixels.events[next_event]()
             logger.info(f"{next_event} complete")

@@ -75,13 +75,19 @@ class Pixels:
 
 def loop(pixels: Pixels) -> None:
     while True:
-        for color in pixels.base.range_to("blue", 5):
-            pixels.run_down()
-            pixels.off()
-            pixels.run_up()
-            pixels.off()
+        try:
+            for color in pixels.base.range_to("blue", 5):
+                pixels.run_down()
+                pixels.off()
+                pixels.run_up()
+                pixels.off()
+                pixels.reset()
+                pixels.color = color
+        except KeyboardInterrupt:
+            print("\n== paused ==")
+            if input("exit? (y/N) ").lower() == "y":
+                return
             pixels.reset()
-            pixels.color = color
 
 
 def main() -> None:
