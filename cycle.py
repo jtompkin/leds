@@ -34,7 +34,7 @@ logging_config = {
             "level": "INFO",
             "formatter": "detailed",
             "filename": "logs/smooth.log",
-            "maxBytes": 1024 * 1024 * 8,
+            "maxBytes": 1024 * 1024 * 16,
             "backupCount": 3,
         },
     },
@@ -62,6 +62,7 @@ class Pixels:
             "dusk": self._setup_gradual(self.max, self.min),
         }
         self.done = {event: False for event in self.events}
+        self.days = 1
 
     def _setup_gradual(self, start: float, end: float):
         def gradual():
@@ -101,6 +102,7 @@ class Pixels:
     def new_day(self) -> None:
         for event in self.done:
             self.done[event] = False
+        self.days += 1
 
 
 def loop(
@@ -108,9 +110,8 @@ def loop(
     dawn_time: datetime.time,
     dusk_time: datetime.time | None = None,
 ) -> None:
-    day = 1
     while True:
-        logging.info(f"beginning day {day}")
+        logging.info(f"beginning day {pixels.days}")
         events = get_events(dawn_time, dusk_time)
         if events["dawn"] > events["dusk"]:
             pixels.set_day()
@@ -135,7 +136,6 @@ def loop(
             else:
                 next_event = "dusk"
         pixels.new_day()
-        day += 1
 
 
 def sleep_until(time: datetime.datetime) -> bool:
