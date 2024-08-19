@@ -52,17 +52,16 @@ class Pixels:
         min: float,
         max: float,
         duration: float,
-        log: bool = True,
     ) -> None:
         self.pixels = pixels
         self.min = min
         self.max = max
         self.duration = duration
-        self.log = log
         self.events = {
             "dawn": self._setup_gradual(self.min, self.max),
             "dusk": self._setup_gradual(self.max, self.min),
         }
+        self.done = {event: False for event in self.events}
 
     def _setup_gradual(self, start: float, end: float):
         def gradual():
@@ -73,28 +72,35 @@ class Pixels:
             while time() - t < self.duration:
                 brightness += delta
                 self._change_brightness(brightness)
-                if self.log:
-                    logger.debug(brightness)
+                logger.debug(brightness)
                 sleep(1 / RATE)
             self._change_brightness(end)
-            if self.log:
-                logger.debug(f"duration {time() - t}")
+            logger.debug(f"duration {time() - t}")
 
         return gradual
-
-    def set_day(self):
-        if self.log:
-            logger.debug(f"setting brightness to {self.max}")
-        self._change_brightness(self.max)
-
-    def set_night(self):
-        if self.log:
-            logger.debug(f"setting brightness to {self.min}")
-        self._change_brightness(self.min)
 
     def _change_brightness(self, brightness: float) -> None:
         self.pixels.brightness = brightness
         self.pixels.show()
+
+    def set_day(self):
+        logger.debug(f"setting brightness to {self.max}")
+        self._change_brightness(self.max)
+
+    def set_night(self):
+        logger.debug(f"setting brightness to {self.min}")
+        self._change_brightness(self.min)
+
+    def start_event(self, event: str) -> None:
+        self.events[event]()
+        self.done[event] = True
+
+    def day_done(self) -> bool:
+        return all(self.done.values())
+
+    def new_day(self) -> None:
+        for event in self.done:
+            self.done[event] = False
 
 
 def loop(
@@ -112,30 +118,35 @@ def loop(
         else:
             pixels.set_night()
             next_event = "dawn"
-        done = {"dawn": False, "dusk": False}
         logger.info(f"current time is {events['now']}")
         logger.info(f"dawn will occur at {events['dawn']}")
         logger.info(f"dusk will occur at {events['dusk']}")
-        while not (done["dawn"] and done["dusk"]):
+        while not pixels.day_done():
             logger.info(
                 f"next event ({next_event}) will occur at {events[next_event]}"
             )
-            while datetime.datetime.now() < events[next_event]:
-                try:
-                    sleep(0.01)
-                except KeyboardInterrupt:
-                    logger.info("Received interrupt signal")
-                    if input("exit? (y/N) ").lower() == "y":
-                        return
+            if not sleep_until(events[next_event]):
+                return
             logger.info(f"beginning {next_event}")
-            pixels.events[next_event]()
+            pixels.start_event(next_event)
             logger.info(f"{next_event} complete")
-            done[next_event] = True
             if next_event == "dusk":
                 next_event = "dawn"
             else:
                 next_event = "dusk"
+        pixels.new_day()
         day += 1
+
+
+def sleep_until(time: datetime.datetime) -> bool:
+    while datetime.datetime.now() < time:
+        try:
+            sleep(0.1)
+        except KeyboardInterrupt:
+            logger.info("Received interrupt signal")
+            if input("exit? (y/N) ").lower() == "y":
+                return False
+    return True
 
 
 def get_events(
