@@ -15,45 +15,39 @@ def fill(pixels: neopixel.NeoPixel, color: Color) -> None:
     input("Press enter to reset LEDs. ")
 
 
-def _color(arg: str) -> int:
-    val = int(arg)
-    if not 0 <= val <= 255:
-        raise argparse.ArgumentTypeError("value must be between 0 and 255")
-    return val
-
-
-def _color_val(arg: str) -> int:
-    val = int(arg.lstrip("#"), 16)
-    if not 0 <= val <= 0xFFFFFF:
-        raise argparse.ArgumentTypeError("value must be between 0 and #FFFFFF")
-    return val
+def get_color(args: list[str], parser: argparse.ArgumentParser) -> Color:
+    if len(args) == 1:
+        val = int(args[0].lstrip("#"), 16)
+        if not 0x000000 <= val <= 0xFFFFFF:
+            parser.error("value must be between 0x000000 and 0xFFFFFF")
+        return val
+    if len(args) == 3:
+        vals: list[int] = []
+        for arg in args:
+            val = int(arg)
+            if not 0 <= val <= 255:
+                parser.error("value must be between 0 and 255")
+            vals.append(val)
+        return (vals[0], vals[1], vals[2])
+    parser.error(
+        "color must be a single hexadecimal value or an RGB color code"
+    )
 
 
 def _pos_int(arg: str) -> int:
     val = int(arg)
-    if val < 0:
-        raise argparse.ArgumentTypeError(
-            "value must be greater than or equal to 0"
-        )
+    if val < 1:
+        raise argparse.ArgumentTypeError("value must be greater than 0")
     return val
 
 
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description="Fill leds with given color")
-    color = parser.add_mutually_exclusive_group()
-    color.add_argument(
-        "-r",
-        "--rgb",
-        nargs=3,
-        type=_color,
-        help="Color as RGB values. Separate values by space. (default 255 255 255)",
-    )
-    color.add_argument(
-        "-c",
-        "--color",
-        type=_color_val,
-        default=0xFFFFFF,
-        help="Color as hexadecimal value. (default #FFFFFF)",
+    parser.add_argument(
+        "color",
+        nargs="*",
+        default=["FFFFFF"],
+        help="specifies the color to set LEDs to. The value must be a single hexadecimal integer between 0x000000 and 0xFFFFFF, or 3 integers between 0 and 255 for an RGB color code. (default 0xFFFFFF)",
     )
     parser.add_argument(
         "-n",
@@ -61,15 +55,11 @@ def main(argv: list[str] | None = None) -> None:
         dest="num_pixels",
         type=_pos_int,
         default=60,
-        help="Number of pixels to fill. (default 60)",
+        help="specifies the number of pixels to use. The value must be an integer greater than 0. (default 60)",
     )
     args = parser.parse_args(argv)
-    if args.rgb is None:
-        c = args.color
-    else:
-        c = args.rgb
     with neopixel.NeoPixel(PIN, args.num_pixels) as pixels:  # pyright: ignore
-        fill(pixels, c)
+        fill(pixels, get_color(args.color, parser))
 
 
 if __name__ == "__main__":
